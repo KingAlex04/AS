@@ -1,9 +1,18 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { API_URL } from '../utils/config';
 
 // Create auth context
 export const AuthContext = createContext();
+
+// Create custom hook for using auth context
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
 
 export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -102,6 +111,11 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   };
 
+  // Update user information
+  const updateUser = (updatedUserData) => {
+    setUser(updatedUserData);
+  };
+
   // Logout user
   const logout = () => {
     localStorage.removeItem('token');
@@ -122,6 +136,7 @@ export const AuthProvider = ({ children }) => {
         login,
         register,
         registerCompany,
+        updateUser,
         logout
       }}
     >
