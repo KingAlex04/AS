@@ -17,7 +17,6 @@ import {
   Avatar,
   Menu,
   MenuItem,
-  Button,
 } from '@mui/material';
 import {
   Menu as MenuIcon,

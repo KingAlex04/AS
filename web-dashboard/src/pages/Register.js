@@ -71,8 +71,6 @@ const Register = () => {
         throw new Error(errorData.message || 'Registration failed');
       }
       
-      const registerData = await registerResponse.json();
-      
       // Auto login after successful registration
       await login(formData.email, formData.password);
       
