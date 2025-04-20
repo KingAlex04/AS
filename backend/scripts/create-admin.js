@@ -6,10 +6,13 @@ const User = require('../models/User');
 async function createAdmin() {
   try {
     // Connect to MongoDB
-    const uri = process.env.MONGO_URI || 'mongodb://localhost:27017/hrm-tracker';
+    const uri = process.env.MONGO_URI || 'mongodb+srv://hrmtracker:hrmtracker123@hrmtracker.mongodb.net/hrm-tracker?retryWrites=true&w=majority';
+    console.log('Connecting to MongoDB:', uri);
+    
     await mongoose.connect(uri, {
       useNewUrlParser: true,
-      useUnifiedTopology: true
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 30000
     });
     
     console.log('Connected to MongoDB');
@@ -28,9 +31,12 @@ async function createAdmin() {
       // Update admin password
       const hashedPassword = await bcrypt.hash('Laxmi@1234#', 10);
       adminExists.password = hashedPassword;
+      adminExists.active = true;
       await adminExists.save();
       console.log('Admin password updated');
       
+      await mongoose.connection.close();
+      console.log('MongoDB connection closed');
       process.exit(0);
     }
     
@@ -53,6 +59,8 @@ async function createAdmin() {
       role: admin.role
     });
     
+    await mongoose.connection.close();
+    console.log('MongoDB connection closed');
     process.exit(0);
   } catch (error) {
     console.error('Error creating admin user:', error);

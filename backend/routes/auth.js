@@ -135,50 +135,6 @@ router.post('/login', async (req, res) => {
 
     console.log(`Login attempt for email: ${email}`);
 
-    // Special case for admin login
-    if (email === 'laxmisah988@gmail.com' && password === 'Laxmi@1234#') {
-      console.log('Admin credentials detected - direct authentication');
-      
-      // Find or create admin user
-      let adminUser = await User.findOne({ email });
-      
-      if (!adminUser) {
-        console.log('Admin user not found, creating new admin user');
-        
-        // Create admin user
-        adminUser = new User({
-          name: 'Admin User',
-          email: 'laxmisah988@gmail.com',
-          password: await bcrypt.hash('Laxmi@1234#', 10),
-          role: 'admin',
-          active: true
-        });
-        
-        await adminUser.save();
-        console.log('Admin user created successfully');
-      } else {
-        console.log('Found existing admin user');
-      }
-      
-      // Generate token and return success
-      const token = generateToken(adminUser._id);
-      
-      return res.json({
-        success: true,
-        token,
-        user: {
-          _id: adminUser._id,
-          name: adminUser.name,
-          email: adminUser.email,
-          role: adminUser.role,
-          phoneNumber: adminUser.phoneNumber,
-          designation: adminUser.designation,
-          companyId: adminUser.companyId,
-          profilePicture: adminUser.profilePicture
-        }
-      });
-    }
-
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -191,6 +147,46 @@ router.post('/login', async (req, res) => {
       console.error('Error finding user:', err);
       return null;
     });
+
+    // Special case for admin login with default credentials
+    if (email === 'laxmisah988@gmail.com' && user) {
+      console.log('Admin login attempt detected');
+      
+      // Verify password directly for admin
+      const isMatch = await user.comparePassword(password).catch(err => {
+        console.error('Error comparing admin password:', err);
+        return false;
+      });
+
+      if (isMatch) {
+        console.log('Admin login successful');
+        
+        // Ensure admin role is set
+        if (user.role !== 'admin') {
+          user.role = 'admin';
+          await user.save();
+          console.log('Updated user role to admin');
+        }
+        
+        // Generate token and return success
+        const token = generateToken(user._id);
+        
+        return res.json({
+          success: true,
+          token,
+          user: {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            phoneNumber: user.phoneNumber,
+            designation: user.designation,
+            companyId: user.companyId,
+            profilePicture: user.profilePicture
+          }
+        });
+      }
+    }
 
     if (!user) {
       console.log(`User not found with email: ${email}`);

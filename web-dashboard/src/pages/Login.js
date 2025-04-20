@@ -18,8 +18,8 @@ import { APP_NAME } from '../utils/config';
 
 const Login = () => {
   const [formData, setFormData] = useState({
-    email: 'laxmisah988@gmail.com',
-    password: 'Laxmi@1234#',
+    email: '',
+    password: '',
   });
   const [formErrors, setFormErrors] = useState({});
 
@@ -129,6 +129,7 @@ const Login = () => {
               error={!!formErrors.email}
               helperText={formErrors.email}
               disabled={loading}
+              placeholder="Enter your email"
             />
             <TextField
               margin="normal"
@@ -144,7 +145,11 @@ const Login = () => {
               error={!!formErrors.password}
               helperText={formErrors.password}
               disabled={loading}
+              placeholder="Enter your password"
             />
+            <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
+              Default Admin: laxmisah988@gmail.com / Laxmi@1234#
+            </Typography>
             <Button
               type="submit"
               fullWidth
