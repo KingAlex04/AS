@@ -16,14 +16,28 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// MongoDB connection options
+const mongoOptions = {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 30000, // Increase timeout to 30 seconds
+  socketTimeoutMS: 45000, // Increase socket timeout to 45 seconds
+  family: 4 // Use IPv4, skip trying IPv6
+};
+
 // Connect to MongoDB
 mongoose
-  .connect(process.env.MONGO_URI || 'mongodb://localhost:27017/hrm-tracker', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
-  .then(() => console.log('MongoDB connected'))
-  .catch((err) => console.error('MongoDB connection error:', err));
+  .connect(process.env.MONGO_URI || 'mongodb://localhost:27017/hrm-tracker', mongoOptions)
+  .then(() => console.log('MongoDB connected successfully'))
+  .catch((err) => {
+    console.error('MongoDB connection error:', err);
+    console.log('MongoDB connection string:', process.env.MONGO_URI || 'mongodb://localhost:27017/hrm-tracker');
+  });
+
+// Set up mongoose connection events for better error handling
+mongoose.connection.on('connected', () => console.log('Mongoose connected to DB'));
+mongoose.connection.on('error', (err) => console.error('Mongoose connection error:', err));
+mongoose.connection.on('disconnected', () => console.log('Mongoose disconnected'));
 
 // Routes
 app.use('/api/auth', authRoutes);

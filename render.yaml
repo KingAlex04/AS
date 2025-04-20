@@ -1,8 +1,8 @@
 services:
   - type: web
-    name: hrm-tracker-api
+    name: hrm-location-tracker-api
     env: node
-    plan: free
+    region: singapore
     buildCommand: cd backend && npm install
     startCommand: cd backend && node server.js
     envVars:
@@ -10,15 +10,23 @@ services:
         value: production
       - key: PORT
         value: 10000
+      - key: MONGO_URI
+        value: mongodb+srv://hrmtracker:hrmtracker123@hrmtracker.mongodb.net/hrm-tracker?retryWrites=true&w=majority
       - key: JWT_SECRET
-        generateValue: true
+        value: hrm_location_tracker_secret_key_2023
       - key: JWT_EXPIRE
         value: 30d
-      - key: MONGO_URI
-        fromDatabase:
-          name: hrm-tracker-db
-          property: connectionString
 
-databases:
-  - name: hrm-tracker-db
-    plan: free 
+  - type: web
+    name: hrm-location-tracker-web
+    env: static
+    region: singapore
+    buildCommand: cd web-dashboard && npm install && npm run build
+    staticPublishPath: web-dashboard/build
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_ENV
+        value: production 

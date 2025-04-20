@@ -132,28 +132,63 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    console.log(`Login attempt for email: ${email}`);
+
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide both email and password'
+      });
+    }
+
     // Check for user
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }).catch(err => {
+      console.error('Error finding user:', err);
+      return null;
+    });
+
     if (!user) {
+      console.log(`User not found with email: ${email}`);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
+      });
+    }
+
+    console.log(`User found: ${user.name}, role: ${user.role}`);
+
+    // Check if user is active
+    if (!user.active) {
+      console.log(`User account is deactivated: ${email}`);
+      return res.status(401).json({
+        success: false,
+        message: 'Your account has been deactivated. Please contact an administrator.'
       });
     }
 
     // Check if password matches
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await user.comparePassword(password).catch(err => {
+      console.error('Error comparing password:', err);
+      return false;
+    });
+
     if (!isMatch) {
+      console.log(`Invalid password for user: ${email}`);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials'
       });
     }
 
+    console.log(`Login successful for: ${email}`);
+
+    // Generate token
+    const token = generateToken(user._id);
+
     // Return response with token
     res.json({
       success: true,
-      token: generateToken(user._id),
+      token,
       user: {
         _id: user._id,
         name: user.name,
@@ -166,9 +201,11 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({
       success: false,
-      message: error.message
+      message: 'Server error during login. Please try again.',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
