@@ -18,6 +18,19 @@ async function createAdmin() {
     const adminExists = await User.findOne({ email: 'laxmisah988@gmail.com' });
     if (adminExists) {
       console.log('Admin user already exists');
+      if (adminExists.role !== 'admin') {
+        // Update to admin role if not already
+        adminExists.role = 'admin';
+        await adminExists.save();
+        console.log('User updated to admin role');
+      }
+      
+      // Update admin password
+      const hashedPassword = await bcrypt.hash('Laxmi@1234#', 10);
+      adminExists.password = hashedPassword;
+      await adminExists.save();
+      console.log('Admin password updated');
+      
       process.exit(0);
     }
     

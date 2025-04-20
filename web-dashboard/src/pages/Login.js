@@ -145,10 +145,6 @@ const Login = () => {
               helperText={formErrors.password}
               disabled={loading}
             />
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              Default Email: laxmisah988@gmail.com<br />
-              Default Password: Laxmi@1234#
-            </Typography>
             <Button
               type="submit"
               fullWidth
