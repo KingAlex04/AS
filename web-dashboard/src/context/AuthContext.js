@@ -25,15 +25,43 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const loadUser = async () => {
       try {
+        // First check if we have an offline admin user
+        const offlineAdminUser = localStorage.getItem('offlineAdminUser');
+        if (offlineAdminUser) {
+          console.log('Found offline admin user, loading offline session');
+          const adminUser = JSON.parse(offlineAdminUser);
+          setUser(adminUser);
+          setIsAuthenticated(true);
+          setLoading(false);
+          return;
+        }
+
+        // Normal auth flow
         const storedToken = localStorage.getItem('token');
         if (storedToken) {
           axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
           setToken(storedToken);
 
-          // Get user data
-          const res = await axios.get(`${API_URL}/api/auth/me`);
-          setUser(res.data.user);
-          setIsAuthenticated(true);
+          try {
+            // Get user data
+            const res = await axios.get(`${API_URL}/api/auth/me`);
+            setUser(res.data.user);
+            setIsAuthenticated(true);
+          } catch (err) {
+            console.error('Error fetching user profile:', err);
+            // Check if we had previous user info stored
+            const cachedUserData = localStorage.getItem('userData');
+            if (cachedUserData) {
+              console.log('Using cached user data');
+              setUser(JSON.parse(cachedUserData));
+              setIsAuthenticated(true);
+            } else {
+              localStorage.removeItem('token');
+              setToken(null);
+              setUser(null);
+              setIsAuthenticated(false);
+            }
+          }
         }
       } catch (err) {
         console.error('Error loading user:', err);
@@ -61,6 +89,9 @@ export const AuthProvider = ({ children }) => {
 
       if (res.data.success) {
         localStorage.setItem('token', res.data.token);
+        // Cache user data for offline use
+        localStorage.setItem('userData', JSON.stringify(res.data.user));
+        
         setToken(res.data.token);
         setUser(res.data.user);
         setIsAuthenticated(true);
@@ -141,6 +172,8 @@ export const AuthProvider = ({ children }) => {
   // Logout user
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('userData');
+    localStorage.removeItem('offlineAdminUser');
     setToken(null);
     setUser(null);
     setIsAuthenticated(false);

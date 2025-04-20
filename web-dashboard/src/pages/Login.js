@@ -16,7 +16,7 @@ import {
 } from '@mui/material';
 import { LockOutlined, Refresh, CheckCircle } from '@mui/icons-material';
 import { AuthContext } from '../context/AuthContext';
-import { APP_NAME, API_URL, API_URLS, DEFAULT_ADMIN } from '../utils/config';
+import { APP_NAME, API_URL, API_URLS, DEFAULT_ADMIN, testApiEndpoint } from '../utils/config';
 import axios from 'axios';
 
 const Login = () => {
@@ -50,52 +50,35 @@ const Login = () => {
       activeApi: API_URL 
     });
     
+    setApiCheckResults(API_URLS.map(url => ({ url, status: 'checking' })));
+    
     const results = [];
     let anyOnline = false;
     let bestApi = null;
     
-    for (const apiUrl of API_URLS) {
-      try {
-        setApiCheckResults(prev => [...prev, { url: apiUrl, status: 'checking' }]);
+    // Test all endpoints in parallel for faster checking
+    const testPromises = API_URLS.map(url => testApiEndpoint(url));
+    const apiResults = await Promise.all(testPromises);
+    
+    for (const result of apiResults) {
+      if (result.online) {
+        results.push({ url: result.url, online: true, message: 'Online' });
+        anyOnline = true;
+        if (!bestApi) bestApi = result.url; // Use the first working API
         
-        // Add a timeout to the request
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-        
-        const response = await axios.get(`${apiUrl}`, { 
-          signal: controller.signal,
-          timeout: 5000
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (response.status === 200) {
-          results.push({ url: apiUrl, online: true, message: 'Online' });
-          anyOnline = true;
-          bestApi = apiUrl; // We'll use the first working API
-          
-          setApiCheckResults(prev => 
-            prev.map(res => res.url === apiUrl ? 
-              { ...res, status: 'online' } : res)
-          );
-        } else {
-          results.push({ url: apiUrl, online: false, message: `Error: ${response.status}` });
-          
-          setApiCheckResults(prev => 
-            prev.map(res => res.url === apiUrl ? 
-              { ...res, status: 'error' } : res)
-          );
-        }
-      } catch (err) {
-        console.error(`Server check failed for ${apiUrl}:`, err);
+        setApiCheckResults(prev => 
+          prev.map(res => res.url === result.url ? 
+            { ...res, status: 'online' } : res)
+        );
+      } else {
         results.push({ 
-          url: apiUrl, 
+          url: result.url, 
           online: false, 
-          message: err.message || 'Could not connect' 
+          message: result.error || `Error: ${result.status || 'Unknown'}`
         });
         
         setApiCheckResults(prev => 
-          prev.map(res => res.url === apiUrl ? 
+          prev.map(res => res.url === result.url ? 
             { ...res, status: 'error' } : res)
         );
       }
@@ -178,9 +161,38 @@ const Login = () => {
     e.preventDefault();
     
     if (validate()) {
-      // Use the best available API endpoint
-      login(formData.email, formData.password, serverStatus.activeApi);
+      // Check if we're trying to login as admin in offline mode
+      if (serverStatus.online === false && 
+          formData.email === DEFAULT_ADMIN.email && 
+          formData.password === DEFAULT_ADMIN.password) {
+        // Handle offline admin login
+        handleOfflineAdminLogin();
+      } else {
+        // Normal login with best available API
+        login(formData.email, formData.password, serverStatus.activeApi);
+      }
     }
+  };
+
+  // Add offline admin login function
+  const handleOfflineAdminLogin = () => {
+    // Create a mock admin user
+    const mockAdminUser = {
+      _id: 'offline-admin-id',
+      name: 'Admin User',
+      email: DEFAULT_ADMIN.email,
+      role: 'admin',
+      offlineMode: true
+    };
+    
+    // Store in localStorage
+    localStorage.setItem('offlineAdminUser', JSON.stringify(mockAdminUser));
+    
+    // Notify user
+    alert('Logging in as admin in OFFLINE mode. Limited functionality will be available.');
+    
+    // Redirect to dashboard
+    navigate('/');
   };
 
   // Fill admin credentials
@@ -228,17 +240,18 @@ const Login = () => {
               sx={{ width: '100%', mb: 2, mt: 1 }}
               action={
                 <Button 
-                  color="inherit" 
+                  color="warning"
+                  variant="outlined"
                   size="small"
                   onClick={checkServerStatus}
                   disabled={serverStatus.checking}
                   startIcon={serverStatus.checking ? <CircularProgress size={16} /> : <Refresh />}
                 >
-                  Retry
+                  RETRY
                 </Button>
               }
             >
-              {serverStatus.message}
+              All server endpoints are offline. You can still login as admin in offline mode with limited functionality.
             </Alert>
           )}
           
@@ -311,9 +324,11 @@ const Login = () => {
               fullWidth
               variant="contained"
               sx={{ mt: 2, mb: 2 }}
-              disabled={loading || (serverStatus.online === false && !formData.email.includes('admin'))}
+              disabled={loading || (serverStatus.online === false && formData.email !== DEFAULT_ADMIN.email)}
             >
-              {loading ? <CircularProgress size={24} /> : 'Login'}
+              {loading ? <CircularProgress size={24} /> : 
+               (serverStatus.online === false && formData.email === DEFAULT_ADMIN.email) ? 
+               'LOGIN IN OFFLINE MODE' : 'LOGIN'}
             </Button>
             
             <Divider sx={{ my: 2 }} />
