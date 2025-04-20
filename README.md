@@ -48,6 +48,13 @@ This project consists of three main components:
 - MongoDB
 - npm or yarn
 
+### Admin Credentials
+The system comes pre-configured with an admin account:
+- **Email:** laxmisah988@gmail.com
+- **Password:** Laxmi@1234#
+
+These credentials can be used to log in to the web dashboard as an administrator.
+
 ### Installation and Setup
 
 #### Backend
@@ -79,7 +86,7 @@ npm start
 
 ## Usage
 
-1. Register as a company admin
+1. Log in with the admin credentials or register as a company admin
 2. Add staff users
 3. Staff users can log in via the mobile app
 4. Staff can check-in, check-out, and have their locations tracked

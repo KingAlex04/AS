@@ -18,8 +18,8 @@ import { APP_NAME } from '../utils/config';
 
 const Login = () => {
   const [formData, setFormData] = useState({
-    email: '',
-    password: '',
+    email: 'laxmisah988@gmail.com',
+    password: 'Laxmi@1234#',
   });
   const [formErrors, setFormErrors] = useState({});
 
@@ -102,7 +102,7 @@ const Login = () => {
             <LockOutlined />
           </Avatar>
           <Typography component="h1" variant="h5">
-            Login
+            Admin Login
           </Typography>
           <Typography variant="body2" sx={{ mt: 1, mb: 3 }}>
             {APP_NAME}
@@ -145,6 +145,10 @@ const Login = () => {
               helperText={formErrors.password}
               disabled={loading}
             />
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              Default Email: laxmisah988@gmail.com<br />
+              Default Password: Laxmi@1234#
+            </Typography>
             <Button
               type="submit"
               fullWidth
