@@ -1,5 +1,5 @@
 // Set your backend API URL here
-export const API_URL = 'http://192.168.1.100:5000'; // Update this with your server IP
+export const API_URL = 'https://hrm-tracker-api.onrender.com';
 
 // Other configurations
 export const APP_NAME = 'HRM Location Tracker';
