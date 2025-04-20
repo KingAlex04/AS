@@ -11,10 +11,13 @@ import {
   Avatar,
   Alert,
   CircularProgress,
+  Divider,
+  Chip,
 } from '@mui/material';
-import { LockOutlined } from '@mui/icons-material';
+import { LockOutlined, Refresh, CheckCircle } from '@mui/icons-material';
 import { AuthContext } from '../context/AuthContext';
-import { APP_NAME } from '../utils/config';
+import { APP_NAME, API_URL, API_URLS, DEFAULT_ADMIN } from '../utils/config';
+import axios from 'axios';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -22,9 +25,111 @@ const Login = () => {
     password: '',
   });
   const [formErrors, setFormErrors] = useState({});
+  const [serverStatus, setServerStatus] = useState({ 
+    checking: false, 
+    online: null, 
+    message: '', 
+    activeApi: API_URL 
+  });
+  const [apiCheckResults, setApiCheckResults] = useState([]);
 
   const { login, isAuthenticated, loading, error } = useContext(AuthContext);
   const navigate = useNavigate();
+
+  // Check all server endpoints on load
+  useEffect(() => {
+    checkAllServers();
+  }, []);
+
+  // Check all available API endpoints
+  const checkAllServers = async () => {
+    setServerStatus({ 
+      checking: true, 
+      online: null, 
+      message: 'Checking all server endpoints...', 
+      activeApi: API_URL 
+    });
+    
+    const results = [];
+    let anyOnline = false;
+    let bestApi = null;
+    
+    for (const apiUrl of API_URLS) {
+      try {
+        setApiCheckResults(prev => [...prev, { url: apiUrl, status: 'checking' }]);
+        
+        // Add a timeout to the request
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await axios.get(`${apiUrl}`, { 
+          signal: controller.signal,
+          timeout: 5000
+        });
+        
+        clearTimeout(timeoutId);
+        
+        if (response.status === 200) {
+          results.push({ url: apiUrl, online: true, message: 'Online' });
+          anyOnline = true;
+          bestApi = apiUrl; // We'll use the first working API
+          
+          setApiCheckResults(prev => 
+            prev.map(res => res.url === apiUrl ? 
+              { ...res, status: 'online' } : res)
+          );
+        } else {
+          results.push({ url: apiUrl, online: false, message: `Error: ${response.status}` });
+          
+          setApiCheckResults(prev => 
+            prev.map(res => res.url === apiUrl ? 
+              { ...res, status: 'error' } : res)
+          );
+        }
+      } catch (err) {
+        console.error(`Server check failed for ${apiUrl}:`, err);
+        results.push({ 
+          url: apiUrl, 
+          online: false, 
+          message: err.message || 'Could not connect' 
+        });
+        
+        setApiCheckResults(prev => 
+          prev.map(res => res.url === apiUrl ? 
+            { ...res, status: 'error' } : res)
+        );
+      }
+    }
+    
+    if (anyOnline) {
+      // Configure axios to use the best API
+      if (bestApi) {
+        console.log(`Using API endpoint: ${bestApi}`);
+        axios.defaults.baseURL = bestApi;
+      }
+      
+      setServerStatus({
+        checking: false,
+        online: true,
+        message: 'Connected to server',
+        activeApi: bestApi || API_URL
+      });
+    } else {
+      setServerStatus({
+        checking: false,
+        online: false,
+        message: 'All server endpoints are offline',
+        activeApi: API_URL
+      });
+    }
+    
+    return results;
+  };
+
+  // Retry connection to server
+  const checkServerStatus = async () => {
+    await checkAllServers();
+  };
 
   // Redirect if authenticated
   useEffect(() => {
@@ -73,8 +178,17 @@ const Login = () => {
     e.preventDefault();
     
     if (validate()) {
-      login(formData.email, formData.password);
+      // Use the best available API endpoint
+      login(formData.email, formData.password, serverStatus.activeApi);
     }
+  };
+
+  // Fill admin credentials
+  const fillAdminCredentials = () => {
+    setFormData({
+      email: DEFAULT_ADMIN.email,
+      password: DEFAULT_ADMIN.password
+    });
   };
 
   return (
@@ -104,9 +218,39 @@ const Login = () => {
           <Typography component="h1" variant="h5">
             Admin Login
           </Typography>
-          <Typography variant="body2" sx={{ mt: 1, mb: 3 }}>
+          <Typography variant="body2" sx={{ mt: 1, mb: 1 }}>
             {APP_NAME}
           </Typography>
+          
+          {serverStatus.online === false && (
+            <Alert 
+              severity="warning" 
+              sx={{ width: '100%', mb: 2, mt: 1 }}
+              action={
+                <Button 
+                  color="inherit" 
+                  size="small"
+                  onClick={checkServerStatus}
+                  disabled={serverStatus.checking}
+                  startIcon={serverStatus.checking ? <CircularProgress size={16} /> : <Refresh />}
+                >
+                  Retry
+                </Button>
+              }
+            >
+              {serverStatus.message}
+            </Alert>
+          )}
+          
+          {serverStatus.online === true && (
+            <Alert 
+              severity="success" 
+              icon={<CheckCircle />}
+              sx={{ width: '100%', mb: 2, mt: 1 }}
+            >
+              Connected to server
+            </Alert>
+          )}
           
           {error && (
             <Alert severity="error" sx={{ width: '100%', mb: 2 }}>
@@ -148,18 +292,52 @@ const Login = () => {
               placeholder="Enter your password"
             />
             <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-              Default Admin: laxmisah988@gmail.com / Laxmi@1234#
+              Default Admin: {DEFAULT_ADMIN.email}
             </Typography>
+            
+            <Button
+              variant="outlined"
+              fullWidth
+              size="small"
+              sx={{ mt: 1 }}
+              onClick={fillAdminCredentials}
+              disabled={loading}
+            >
+              Fill Admin Credentials
+            </Button>
+            
             <Button
               type="submit"
               fullWidth
               variant="contained"
-              sx={{ mt: 3, mb: 2 }}
-              disabled={loading}
+              sx={{ mt: 2, mb: 2 }}
+              disabled={loading || (serverStatus.online === false && !formData.email.includes('admin'))}
             >
               {loading ? <CircularProgress size={24} /> : 'Login'}
             </Button>
+            
+            <Divider sx={{ my: 2 }} />
+            
             <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Active API: {serverStatus.activeApi || 'None'}
+              </Typography>
+              
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center', mt: 1, mb: 2 }}>
+                {API_URLS.map((url, index) => {
+                  const apiStatus = apiCheckResults.find(r => r.url === url)?.status || 'unknown';
+                  return (
+                    <Chip 
+                      key={index}
+                      label={url.replace('https://', '').split('.')[0]}
+                      size="small"
+                      color={apiStatus === 'online' ? 'success' : apiStatus === 'checking' ? 'primary' : 'default'}
+                      variant={url === serverStatus.activeApi ? 'filled' : 'outlined'}
+                    />
+                  );
+                })}
+              </Box>
+              
               <Link component={RouterLink} to="/register" variant="body2">
                 {"Don't have an account? Register"}
               </Link>

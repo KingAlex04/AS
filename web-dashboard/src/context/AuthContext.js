@@ -49,11 +49,15 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Login user
-  const login = async (email, password) => {
+  const login = async (email, password, apiUrl = API_URL) => {
     setLoading(true);
     setError(null);
+    
+    console.log(`Attempting login for ${email} to ${apiUrl}/api/auth/login`);
+    
     try {
-      const res = await axios.post(`${API_URL}/api/auth/login`, { email, password });
+      const res = await axios.post(`${apiUrl}/api/auth/login`, { email, password });
+      console.log('Login response:', res.data);
 
       if (res.data.success) {
         localStorage.setItem('token', res.data.token);
@@ -61,10 +65,28 @@ export const AuthProvider = ({ children }) => {
         setUser(res.data.user);
         setIsAuthenticated(true);
         axios.defaults.headers.common['Authorization'] = `Bearer ${res.data.token}`;
+        console.log('Login successful, user data:', res.data.user);
+      } else {
+        console.error('Login unsuccessful:', res.data);
+        setError(res.data.message || 'Login failed. Please check your credentials.');
       }
     } catch (err) {
-      console.error('Login error:', err);
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
+      console.error('Login error details:', err);
+      if (err.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error('Error response data:', err.response.data);
+        console.error('Error response status:', err.response.status);
+        setError(err.response.data?.message || `Server error: ${err.response.status}`);
+      } else if (err.request) {
+        // The request was made but no response was received
+        console.error('No response received:', err.request);
+        setError('No response from server. Please check your internet connection.');
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.error('Error setting up request:', err.message);
+        setError(`Error: ${err.message}`);
+      }
     }
     setLoading(false);
   };
